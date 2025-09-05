@@ -1,11 +1,11 @@
-SHELL SCRIPT DIGITAL OCEAN DROPLET  #!/bin/bash
+#!/bin/bash
 
 ### CONFIGURABLE VARIABLES ###
-PROJECT_NAME="payload-app"
-REPO_URL=""  # Leave blank to scaffold a fresh Payload CMS project
+PROJECT_NAME="mbp-payload"
+REPO_URL="https://github.com/rich-strain/mbp-payload.git"  # Use SSH if keys are set up
 PAYLOAD_VERSION="3.54.0"
 APP_PORT=3000
-DOMAIN=“sites-payload.mobileprofitbot.com"
+DOMAIN="sites-payload.mobileprofitbot.com"
 USE_NGINX=true
 
 ### Colors for output ###
@@ -23,9 +23,10 @@ curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
 apt install -y nodejs
 
 # Step 3: Install MongoDB
-#apt install -y mongodb
-#systemctl enable mongodb
-#systemctl start mongodb
+# Uncomment below to install MongoDB from apt (or install separately if needed)
+# apt install -y mongodb
+# systemctl enable mongodb
+# systemctl start mongodb
 
 # Step 4: Install PM2
 npm install -g pm2
@@ -34,20 +35,28 @@ npm install -g pm2
 cd /root
 
 if [ -n "$REPO_URL" ]; then
-  git clone "$REPO_URL" "$PROJECT_NAME"
+  if [ -d "$PROJECT_NAME" ]; then
+    echo -e "${GREEN}Project directory already exists. Skipping clone.${NC}"
+  else
+    git clone "$REPO_URL" "$PROJECT_NAME"
+  fi
 else
   npx create-payload-app@$PAYLOAD_VERSION "$PROJECT_NAME" --yes
 fi
 
 cd "$PROJECT_NAME"
 
-# Step 6: Create .env file
-cat <<EOF > .env
+# Step 6: Create .env file if it doesn't exist
+if [ -f ".env" ]; then
+  echo -e "${GREEN}.env file already exists. Skipping creation.${NC}"
+else
+  cat <<EOF > .env
 PAYLOAD_SECRET=$(openssl rand -hex 32)
 MONGODB_URI=mongodb://localhost:27017/${PROJECT_NAME}
 PORT=$APP_PORT
 NODE_ENV=production
 EOF
+fi
 
 # Step 7: Install Node dependencies
 npm install
@@ -68,7 +77,13 @@ ufw --force enable
 # Step 11: Nginx reverse proxy
 if [ "$USE_NGINX" = true ] && [ -n "$DOMAIN" ]; then
   echo -e "${GREEN}Setting up Nginx for $DOMAIN...${NC}"
-  cat <<EOF > /etc/nginx/sites-available/payload
+
+  NGINX_CONF="/etc/nginx/sites-available/payload"
+
+  if [ -f "$NGINX_CONF" ]; then
+    echo -e "${GREEN}Nginx config already exists. Skipping creation.${NC}"
+  else
+    cat <<EOF > "$NGINX_CONF"
 server {
     listen 80;
     server_name $DOMAIN;
@@ -84,8 +99,9 @@ server {
 }
 EOF
 
-  ln -s /etc/nginx/sites-available/payload /etc/nginx/sites-enabled/
-  nginx -t && systemctl restart nginx
+    ln -s "$NGINX_CONF" /etc/nginx/sites-enabled/
+    nginx -t && systemctl restart nginx
+  fi
 
   # Step 12: SSL with Certbot
   echo -e "${GREEN}Installing Certbot for HTTPS...${NC}"
@@ -96,10 +112,9 @@ else
 fi
 
 # Final output
-echo -e "${GREEN}Payload CMS deployed successfully!${NC}"
+echo -e "${GREEN}✅ Payload CMS deployed successfully!${NC}"
 if [ -n "$DOMAIN" ]; then
   echo "→ Visit: https://$DOMAIN/admin"
 else
   echo "→ Visit: http://your_server_ip:$APP_PORT/admin"
 fi
-
