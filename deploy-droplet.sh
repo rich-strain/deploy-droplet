@@ -1,8 +1,8 @@
 #!/bin/bash
 
 ### CONFIGURABLE VARIABLES ###
-PROJECT_NAME="mbp-payload"
-REPO_URL="https://github.com/rich-strain/mbp-payload.git"  # Use SSH if keys are set up
+PROJECT_NAME="mobile-profit-bot"
+REPO_URL="https://github.com/rich-strain/sites-payload.mobileprofitbot.git"  # Use SSH if keys are set up
 PAYLOAD_VERSION="3.54.0"
 APP_PORT=3000
 DOMAIN="sites-payload.mobileprofitbot.com"
