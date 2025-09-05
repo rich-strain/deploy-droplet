@@ -41,17 +41,17 @@ fi
 cd "$PROJECT_NAME"
 
 # Step 5: Create .env file if it doesn't exist
-if [ -f ".env" ]; then
-  echo -e "${GREEN}.env file already exists. Skipping creation.${NC}"
-else
-  cat <<EOF > .env
-PAYLOAD_SECRET=$(openssl rand -hex 32)
-MONGODB_URI=mongodb://localhost:27017/${PROJECT_NAME}
-PORT=$APP_PORT
-NODE_ENV=production
-SERVER_URL=https://$DOMAIN
-EOF
-fi
+# if [ -f ".env" ]; then
+#   echo -e "${GREEN}.env file already exists. Skipping creation.${NC}"
+# else
+#   cat <<EOF > .env
+# PAYLOAD_SECRET=$(openssl rand -hex 32)
+# MONGODB_URI=mongodb://localhost:27017/${PROJECT_NAME}
+# PORT=$APP_PORT
+# NODE_ENV=production
+# SERVER_URL=https://$DOMAIN
+# EOF
+# fi
 
 # Step 6: Install Node dependencies
 pnpm install
