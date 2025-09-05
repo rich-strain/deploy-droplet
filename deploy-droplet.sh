@@ -2,7 +2,7 @@
 
 ### CONFIGURABLE VARIABLES ###
 PROJECT_NAME="mobile-profit-bot"
-REPO_URL="https://github.com/rich-strain/sites-payload.mobileprofitbot.git"  # Use SSH if keys are set up
+REPO_URL="git@github.com:rich-strain/sites.mobileprofitbot.git"
 PAYLOAD_VERSION="3.54.0"
 APP_PORT=3000
 DOMAIN="sites-payload.mobileprofitbot.com"
@@ -22,16 +22,10 @@ apt install -y build-essential curl git ufw nginx
 curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
 apt install -y nodejs
 
-# Step 3: Install MongoDB
-# Uncomment below to install MongoDB from apt (or install separately if needed)
-# apt install -y mongodb
-# systemctl enable mongodb
-# systemctl start mongodb
+# Step 3: Install PNPM and PM2
+npm install -g pnpm pm2
 
-# Step 4: Install PM2
-npm install -g pm2
-
-# Step 5: Clone or scaffold Payload CMS project
+# Step 4: Clone Payload CMS project
 cd /root
 
 if [ -n "$REPO_URL" ]; then
@@ -46,7 +40,7 @@ fi
 
 cd "$PROJECT_NAME"
 
-# Step 6: Create .env file if it doesn't exist
+# Step 5: Create .env file if it doesn't exist
 if [ -f ".env" ]; then
   echo -e "${GREEN}.env file already exists. Skipping creation.${NC}"
 else
@@ -55,26 +49,27 @@ PAYLOAD_SECRET=$(openssl rand -hex 32)
 MONGODB_URI=mongodb://localhost:27017/${PROJECT_NAME}
 PORT=$APP_PORT
 NODE_ENV=production
+SERVER_URL=https://$DOMAIN
 EOF
 fi
 
-# Step 7: Install Node dependencies
-npm install
+# Step 6: Install Node dependencies
+pnpm install
 
-# Step 8: Build the app
-npm run build
+# Step 7: Build the app
+pnpm run build
 
-# Step 9: Start with PM2
-pm2 start dist/server.js --name payload
+# Step 8: Start with PM2 using the start script from package.json
+pm2 start pnpm --name payload -- run start
 pm2 startup
 pm2 save
 
-# Step 10: UFW firewall
+# Step 9: Configure UFW firewall
 ufw allow OpenSSH
 ufw allow "$APP_PORT"
 ufw --force enable
 
-# Step 11: Nginx reverse proxy
+# Step 10: Set up NGINX reverse proxy
 if [ "$USE_NGINX" = true ] && [ -n "$DOMAIN" ]; then
   echo -e "${GREEN}Setting up Nginx for $DOMAIN...${NC}"
 
@@ -103,7 +98,7 @@ EOF
     nginx -t && systemctl restart nginx
   fi
 
-  # Step 12: SSL with Certbot
+  # Step 11: SSL with Certbot
   echo -e "${GREEN}Installing Certbot for HTTPS...${NC}"
   apt install -y certbot python3-certbot-nginx
   certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m admin@$DOMAIN
@@ -118,3 +113,4 @@ if [ -n "$DOMAIN" ]; then
 else
   echo "→ Visit: http://your_server_ip:$APP_PORT/admin"
 fi
+
