@@ -18,9 +18,16 @@ echo -e "${GREEN}Starting Payload CMS deployment...${NC}"
 apt update && apt upgrade -y
 apt install -y build-essential curl git ufw nginx
 
-# Step 2: Install Node.js LTS
-curl -fsSL https://deb.nodesource.com/setup_18.x | bash -
-apt install -y nodejs
+# Step 2: Install latest LTS Node.js using 'n'
+echo -e "${GREEN}Installing latest LTS version of Node.js...${NC}"
+curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n | bash -s lts
+
+# Make sure Node and NPM are in PATH (n installs in /usr/local)
+export PATH="/usr/local/bin:$PATH"
+
+# Verify installation
+node -v
+npm -v
 
 # Step 3: Install PNPM and PM2
 npm install -g pnpm pm2
