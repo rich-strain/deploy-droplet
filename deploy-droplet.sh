@@ -2,7 +2,7 @@
 
 ### CONFIGURABLE VARIABLES ###
 PROJECT_NAME="mobile-profit-bot"
-REPO_URL="git@github.com:rich-strain/sites-payload.mobileprofitbot.git"
+REPO_URL="git@github.com:rich-strain/sites.mobileprofitbot.git"
 PAYLOAD_VERSION="3.54.0"
 APP_PORT=3000
 DOMAIN="sites-payload.mobileprofitbot.com"
@@ -12,79 +12,87 @@ USE_NGINX=true
 GREEN='\033[0;32m'
 NC='\033[0m' # No Color
 
-echo -e "${GREEN}Starting Payload CMS deployment...${NC}"
+echo -e "${GREEN}🚀 Starting Payload CMS deployment...${NC}"
 
-# Step 1: Update and install dependencies
+# Step 1: Update and install base packages
 apt update && apt upgrade -y
 apt install -y build-essential curl git ufw nginx
 
-# Step 2: Install latest LTS Node.js using 'n'
-echo -e "${GREEN}Installing latest LTS version of Node.js...${NC}"
-curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n | bash -s lts
-
-# Make sure Node and NPM are in PATH (n installs in /usr/local)
-export PATH="/usr/local/bin:$PATH"
-
-# Verify installation
-node -v
-npm -v
-
-# Step 3: Install PNPM and PM2
-npm install -g pnpm pm2
-
-# Step 4: Clone Payload CMS project
-cd /root
-
-if [ -n "$REPO_URL" ]; then
-  if [ -d "$PROJECT_NAME" ]; then
-    echo -e "${GREEN}Project directory already exists. Skipping clone.${NC}"
-  else
-    git clone "$REPO_URL" "$PROJECT_NAME"
-  fi
+# Step 2: Add swap memory (2GB)
+if [ ! -f /swapfile ]; then
+  echo -e "${GREEN}🧠 Adding 2GB swap memory...${NC}"
+  fallocate -l 2G /swapfile
+  chmod 600 /swapfile
+  mkswap /swapfile
+  swapon /swapfile
+  echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab
 else
-  npx create-payload-app@$PAYLOAD_VERSION "$PROJECT_NAME" --yes
+  echo -e "${GREEN}🧠 Swap file already exists. Skipping swap setup.${NC}"
 fi
 
-cd "$PROJECT_NAME"
+# Step 3: Install latest LTS Node.js using 'n'
+if command -v node > /dev/null 2>&1; then
+  echo -e "${GREEN}🟢 Node.js is already installed. Skipping installation.${NC}"
+else
+  echo -e "${GREEN}📦 Installing latest LTS Node.js...${NC}"
+  curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n | bash -s lts
+  export PATH="/usr/local/bin:$PATH"
+fi
 
-# Step 5: Create .env file if it doesn't exist
-# if [ -f ".env" ]; then
-#   echo -e "${GREEN}.env file already exists. Skipping creation.${NC}"
-# else
-#   cat <<EOF > .env
-# PAYLOAD_SECRET=$(openssl rand -hex 32)
-# MONGODB_URI=mongodb://localhost:27017/${PROJECT_NAME}
-# PORT=$APP_PORT
-# NODE_ENV=production
-# SERVER_URL=https://$DOMAIN
-# EOF
-# fi
+# Step 4: Install global Node tools
+npm install -g pnpm pm2
 
-# Step 6: Install Node dependencies
+# Step 5: Clone or update project
+cd /root
+
+if [ -d "$PROJECT_NAME" ]; then
+  echo -e "${GREEN}📁 Project exists. Pulling latest changes...${NC}"
+  cd "$PROJECT_NAME"
+  git pull
+else
+  echo -e "${GREEN}📁 Cloning project from GitHub...${NC}"
+  git clone "$REPO_URL" "$PROJECT_NAME"
+  cd "$PROJECT_NAME"
+fi
+
+# Step 6: Create .env file if missing
+if [ -f ".env" ]; then
+  echo -e "${GREEN}⚙️ .env file already exists. Skipping creation.${NC}"
+else
+  echo -e "${GREEN}⚙️ Creating new .env file...${NC}"
+  cat <<EOF > .env
+PAYLOAD_SECRET=$(openssl rand -hex 32)
+MONGODB_URI=mongodb://localhost:27017/${PROJECT_NAME}
+PORT=$APP_PORT
+NODE_ENV=production
+SERVER_URL=https://$DOMAIN
+EOF
+fi
+
+# Step 7: Install project dependencies
 pnpm install
 
-# Step 7: Build the app
-pnpm run build
+# Step 8: Build project (log output to file)
+echo -e "${GREEN}🔧 Building Next.js app. This may take a few minutes...${NC}"
+pnpm run build | tee /root/build.log
 
-# Step 8: Start with PM2 using the start script from package.json
+# Step 9: Start app with PM2
 pm2 start pnpm --name payload -- run start
 pm2 startup
 pm2 save
 
-# Step 9: Configure UFW firewall
+# Step 10: Configure UFW firewall
 ufw allow OpenSSH
 ufw allow "$APP_PORT"
 ufw --force enable
 
-# Step 10: Set up NGINX reverse proxy
+# Step 11: NGINX Reverse Proxy
 if [ "$USE_NGINX" = true ] && [ -n "$DOMAIN" ]; then
-  echo -e "${GREEN}Setting up Nginx for $DOMAIN...${NC}"
+  echo -e "${GREEN}🌐 Setting up NGINX for $DOMAIN...${NC}"
 
   NGINX_CONF="/etc/nginx/sites-available/payload"
 
-  if [ -f "$NGINX_CONF" ]; then
-    echo -e "${GREEN}Nginx config already exists. Skipping creation.${NC}"
-  else
+  if [ ! -f "$NGINX_CONF" ]; then
     cat <<EOF > "$NGINX_CONF"
 server {
     listen 80;
@@ -103,21 +111,22 @@ EOF
 
     ln -s "$NGINX_CONF" /etc/nginx/sites-enabled/
     nginx -t && systemctl restart nginx
+  else
+    echo -e "${GREEN}🔁 NGINX config already exists. Skipping creation.${NC}"
   fi
 
-  # Step 11: SSL with Certbot
-  echo -e "${GREEN}Installing Certbot for HTTPS...${NC}"
+  # Step 12: Certbot SSL
+  echo -e "${GREEN}🔒 Installing SSL via Certbot...${NC}"
   apt install -y certbot python3-certbot-nginx
   certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos -m admin@$DOMAIN
 else
-  echo -e "${GREEN}Skipping Nginx setup. App running on port $APP_PORT${NC}"
+  echo -e "${GREEN}🌍 Skipping NGINX setup. App available at port $APP_PORT${NC}"
 fi
 
-# Final output
+# ✅ Final Output
 echo -e "${GREEN}✅ Payload CMS deployed successfully!${NC}"
 if [ -n "$DOMAIN" ]; then
-  echo "→ Visit: https://$DOMAIN/admin"
+  echo "→ Admin Panel: https://$DOMAIN/admin"
 else
-  echo "→ Visit: http://your_server_ip:$APP_PORT/admin"
+  echo "→ Admin Panel: http://your_server_ip:$APP_PORT/admin"
 fi
-
