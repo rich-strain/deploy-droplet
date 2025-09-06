@@ -78,9 +78,14 @@ pnpm run build | tee /root/build.log
 
 # Step 9: Start app with PM2 in the project directory
 pm2 delete payload || true
-pm2 start pnpm --name payload --cwd /root/"$PROJECT_NAME" -- run start
+pm2 start "pnpm run start" --name payload --cwd /root/"$PROJECT_NAME"
 pm2 startup
 pm2 save
+
+# pm2 delete payload || true
+# pm2 start pnpm --name payload --cwd /root/"$PROJECT_NAME" -- run start
+# pm2 startup
+# pm2 save
 
 # Step 10: Configure UFW firewall
 ufw allow OpenSSH
