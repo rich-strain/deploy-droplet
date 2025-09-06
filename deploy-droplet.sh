@@ -2,7 +2,7 @@
 
 ### CONFIGURABLE VARIABLES ###
 PROJECT_NAME="mobile-profit-bot"
-REPO_URL="git@github.com:rich-strain/sites.mobileprofitbot.git"
+REPO_URL="git@github.com:rich-strain/sites-payload.mobileprofitbot.git"
 PAYLOAD_VERSION="3.54.0"
 APP_PORT=3000
 DOMAIN="sites-payload.mobileprofitbot.com"
