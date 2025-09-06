@@ -76,8 +76,9 @@ pnpm install
 echo -e "${GREEN}🔧 Building Next.js app. This may take a few minutes...${NC}"
 pnpm run build | tee /root/build.log
 
-# Step 9: Start app with PM2
-pm2 start pnpm --name payload -- run start
+# Step 9: Start app with PM2 in the project directory
+pm2 delete payload || true
+pm2 start pnpm --name payload --cwd /root/"$PROJECT_NAME" -- run start
 pm2 startup
 pm2 save
 
